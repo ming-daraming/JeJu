@@ -224,6 +224,15 @@ let localDb, tm;
 const idb=()=>new Promise(r=>{try{const q=indexedDB.open('wedding-board',1);q.onupgradeneeded=()=>q.result.createObjectStore('s');q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch(e){r(null)}});
 const loadLocal=async()=>{try{localDb=await idb();if(!localDb)return;await new Promise(r=>{const g=localDb.transaction('s').objectStore('s').get('state');g.onsuccess=()=>{if(g.result)Object.assign(S,g.result);r()};g.onerror=()=>r()})}catch(e){}};
 const cacheLocal=()=>{try{localDb&&localDb.transaction('s','readwrite').objectStore('s').put(S,'state')}catch(e){}};
+
+  let draftTm;
+
+const saveDraft = () => {
+  clearTimeout(draftTm);
+  draftTm = setTimeout(() => {
+    cacheLocal();
+  }, 300);
+};
 const save=()=>{
   clearTimeout(tm);
   tm=setTimeout(async()=>{
@@ -263,7 +272,7 @@ const startFirebase=async()=>{
     build();
     onValue(stateRef,snap=>{
       if(!snap.exists()) return;
-      const incoming=snap.val(), json=JSON.stringify(incoming);
+      if(document.activeElement?.isContentEditable) return;
       if(json===lastSavedJson || json===JSON.stringify(S)) return;
       remoteApplying=true;
       Object.assign(S,incoming);
@@ -460,7 +469,7 @@ document.addEventListener('input',e=>{const t=e.target;
  else if(t.dataset.li){const it=S.l[t.closest('.list').dataset.l].find(i=>i.id===t.closest('li').dataset.id);if(it)it.t=t.innerText}
  else if(t.dataset.r!==undefined){S.sg.g[+t.dataset.r][+t.dataset.c].t=t.innerText.replace(/\n$/,'');t.classList.toggle('fl',!!t.innerText.trim())}
  else if(t.dataset.tm!==undefined)S.sg.tm[+t.dataset.tm]=t.innerText
- else return;save()});
+ else return;saveDraft()});
 document.addEventListener('paste',e=>{
   const cd=e.clipboardData||window.clipboardData;
   const items=[...(cd?.items||[])];
@@ -474,7 +483,13 @@ document.addEventListener('paste',e=>{
     document.execCommand('insertText',false,cd.getData('text'));
   }
 });
-document.addEventListener('focusout',e=>{const t=e.target;if(t.isContentEditable&&!t.innerText.trim())t.innerHTML=''});
+document.addEventListener('focusout',e=>{
+  const t=e.target;
+  if(t.isContentEditable){
+    if(!t.innerText.trim())t.innerHTML='';
+    save();
+  }
+});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing&&e.target.matches('.add input')){e.preventDefault();e.target.nextElementSibling.click()}});
 const li=a=>{const l=a.closest('.list');return[l,S.l[l.dataset.l],a.closest('li')&&a.closest('li').dataset.id]};
 document.addEventListener('click',e=>{
