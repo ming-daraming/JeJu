@@ -107,4 +107,63 @@ td.rx{width:30px;border:0;background:none;padding:0}
 .phd{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .pname{flex:1;font:700 22px var(--hf)}
 .pose .zone{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
-#lb{position:fixed;inset:0;background:rgba(20,14
+#lb{position:fixed;inset:0;background:rgba(20,14,8,.9);display:none;place-items:center;z-index:99;cursor:zoom-out}
+#lb.on{display:grid}#lb img{max-width:94vw;max-height:94vh;border:10px solid var(--paper);border-bottom-width:30px}
+
+/* 비밀번호 잠금 화면 스타일 */
+.lock{max-width:340px;margin:24px auto;text-align:center;background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:28px 22px;box-shadow:0 12px 24px -12px rgba(90,60,30,.3)}
+.lk{font-size:38px}.lock h3{margin:6px 0 2px;font:700 20px var(--hf)}
+.dots{display:flex;gap:14px;justify-content:center;margin:16px 0 20px}
+.dots i{width:14px;height:14px;border-radius:50%;border:2px solid var(--ink)}.dots i.on{background:var(--acc);border-color:var(--acc)}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.pad button{height:56px;border:1.5px solid var(--ink);background:var(--paper);color:#3b2f27;border-radius:12px;font:700 22px var(--mf)}
+.pad button:active{background:var(--kodak)}
+.shake{animation:sh .4s}@keyframes sh{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+</style>
+</head>
+<body>
+<div class="strip"></div>
+<header>
+  <div><span class="stk">WEDDING ROLL · 24 EXP.</span><h1>웨딩 촬영 시안 보드</h1><div class="sub2">우리가 찍고 싶은 장면들, 한 롤에 모아두기</div></div>
+  <div class="btns"><button data-act="print1">🖨 현재 탭 인쇄</button><button data-act="print2">🖨 전체 인쇄</button></div>
+</header>
+<nav class="nav" id="nav"></nav>
+<main id="app"></main>
+<div id="lb"><img alt=""></div>
+<input type="file" id="fi" accept="image/*" multiple hidden>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<!-- Firebase SDK 및 실시간 동기화 로직 -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
+  import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
+  import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-storage.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDL3Asd3DdXbiVkjl-_N2lNCQ1KvxrXRfk",
+    authDomain: "jeju-min-hun.firebaseapp.com",
+    projectId: "jeju-min-hun",
+    storageBucket: "jeju-min-hun.firebasestorage.app",
+    messagingSenderId: "813992374915",
+    appId: "1:813992374915:web:1f827b1af32c79b00761b6",
+    measurementId: "G-8F4E0ZW37K"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const storage = getStorage(app);
+
+  let S = { t: {}, l: {}, p: {}, sch: null, tab: 'prep', sub: { req: 'list', salon: 'makeup', ite: 'intro' } };
+  let tm;
+
+  // 파이어베이스 실시간 데이터 수신 (컴퓨터/핸드폰 동기화)
+  const docRef = doc(db, "wedding", "boardData");
+  onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+      const serverData = docSnap.data();
+      if (serverData && serverData.payload) {
+        S = serverData.payload;
+        if (typeof window.renderApp === 'function') window.renderApp();
+      }
+    } else {
+      setDoc(docRef
