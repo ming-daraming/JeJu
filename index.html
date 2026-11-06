@@ -121,154 +121,45 @@ td.rx{width:30px;border:0;background:none;padding:0}
 <main id="app"></main>
 <div id="lb"><img alt=""></div>
 <input type="file" id="fi" accept="image/*" multiple hidden>
-
-<!-- Firebase SDK (Modular 버전) -->
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
-  import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore.js";
-  import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-storage.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyDL3Asd3DdXbiVkjl-_N2lNCQ1KvxrXRfk",
-    authDomain: "jeju-min-hun.firebaseapp.com",
-    projectId: "jeju-min-hun",
-    storageBucket: "jeju-min-hun.firebasestorage.app",
-    messagingSenderId: "813992374915",
-    appId: "1:813992374915:web:1f827b1af32c79b00761b6",
-    measurementId: "G-8F4E0ZW37K"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-  const storage = getStorage(app);
-
-  let S = { t: {}, l: {}, p: {}, sch: null, tab: 'prep', sub: { req: 'list', salon: 'makeup', ite: 'intro' } };
-  let tm;
-
-  // 파이어베이스에서 실시간 데이터 불러오기
-  const docRef = doc(db, "wedding", "boardData");
-  
-  onSnapshot(docRef, (docSnap) => {
-    if (docSnap.exists()) {
-      const serverData = docSnap.data();
-      if (serverData && serverData.payload) {
-        // 내가 입력 중인 게 아닐 때만 서버 데이터로 갱신
-        S = serverData.payload;
-        if (typeof render === 'function') render();
-      }
-    } else {
-      // 최초 생성
-      setDoc(docRef, { payload: S });
-    }
-  });
-
-  // 서버에 데이터 저장 함수 (디바운스 적용)
-  window.saveToFirebase = () => {
-    clearTimeout(tm);
-    tm = setTimeout(async () => {
-      try {
-        await setDoc(docRef, { payload: S });
-      } catch (e) {
-        console.error("저장 실패:", e);
-      }
-    }, 500);
-  };
-
-  // 사진 업로드 및 삭제 공용 함수 전역 등록
-  window.uploadImageFile = async (file, zKey) => {
-    try {
-      const storageRef = ref(storage, `images/${Date.now()}_${file.name}`);
-      const snapshot = await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(snapshot.ref);
-
-      if (!S.p[zKey]) S.p[zKey] = [];
-      S.p[zKey].push({ id: Math.random().toString(36).slice(2, 9), s: downloadURL, h: 0, path: snapshot.ref.fullPath });
-      window.saveToFirebase();
-      if (typeof render === 'function') render();
-    } catch (e) {
-      alert("사진 업로드 실패: " + e.message);
-    }
-  };
-
-  window.deleteImageItem = async (zKey, pId) => {
-    if(!S.p[zKey]) return;
-    const idx = S.p[zKey].findIndex(item => item.id === pId);
-    if(idx > -1) {
-      const item = S.p[zKey][idx];
-      if(item.path) {
-        try {
-          const desertRef = ref(storage, item.path);
-          await deleteObject(desertRef);
-        } catch(e) {}
-      }
-      S.p[zKey].splice(idx, 1);
-      window.saveToFirebase();
-      if (typeof render === 'function') render();
-    }
-  };
-
-  window.toggleHeartItem = (zKey, pId) => {
-    if(!S.p[zKey]) return;
-    const item = S.p[zKey].find(i => i.id === pId);
-    if(item) {
-      item.h = item.h ? 0 : 1;
-      window.saveToFirebase();
-      if (typeof render === 'function') render();
-    }
-  };
-
-  window.S = S;
-});
-</script>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-// 기존 UI 렌더링 및 이벤트 로직 연결
-const $= s => document.querySelector(s),$$ = s => [...document.querySelectorAll(s)];
-const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const uid = () => Math.random().toString(36).slice(2,9);
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+let S={t:{},l:{},p:{},sch:null,tab:'prep',sub:{req:'list',salon:'makeup',ite:'intro'}};
 
-const T = (k,d='',ph='내용을 입력하세요')=>`<div class="ed" contenteditable="true" data-t="${k}" data-ph="${ph}">${esc(window.S.t[k]??d)}</div>`;
-const zin = (k,min,h,max)=>{
-  const a = window.S.p[k]||[];
-  let s = a.map(p=>`<figure class="ph${p.h?' on':''}" data-id="${p.id}" data-z="${k}"><img src="${p.s}" alt=""><button class="x" data-act="delp" data-z="${k}" data-id="${p.id}" title="삭제">×</button>${h?`<button class="hb" data-act="heart" data-z="${k}" data-id="${p.id}" title="꼭 찍고 싶은 컷">${p.h?'♥':'♡'}</button>`:''}</figure>`).join('');
-  const n = max?Math.max(max-a.length,0):Math.max(min-a.length,1);
-  for(let i=0;i<n;i++)s+=`<button class="slot" data-act="slot" data-z="${k}">＋ 사진<br>드래그 / 클릭 / 복붙</button>`;
-  return s;
-};
-const zone = (k,o={})=>`<div class="zone${o.land?' land':''}${o.max?' one':''}" data-z="${k}" data-min="${o.min||1}" data-h="${o.h?1:0}" data-max="${o.max||0}">${zin(k,o.min||1,o.h,o.max)}</div>`;
-const col = (c,label,k,txt,min,h)=>`<div class="col ${c}"><h6>${label}</h6>${txt===null?'':T(k,txt)}${zone(k,{min,h})}</div>`;
-const pair = (k,[g,b],min,h,L=['원해요','피해주세요'])=>`<div class="pair">${col('good',L[0],k+':g',g,min,h)}${col('bad',L[1],k+':b',b,min,h)}</div>`;
-const pz = (k,min,h)=>`<div class="pair">${col('good','원해요',k+':g',null,min,h)}${col('bad','피해주세요',k+':b',null,min,h)}</div>`;
-const LD = (k,d)=>window.S.l[k]||(window.S.l[k]=d.map(t=>({id:uid(),t,c:0})));
-const lin = (k,chk)=>window.S.l[k].map(i=>`<li data-id="${i.id}">${chk?`<input type="checkbox" data-act="chk" data-id="${i.id}" ${i.c?'checked':''}>`:''}<div class="ed" contenteditable="true" data-li="1" data-id="${i.id}">${esc(i.t)}</div><button class="x2" data-act="dell" data-id="${i.id}" title="삭제">×</button></li>`).join('');
-const list = (k,d,chk)=>{LD(k,d);return `<div class="list" data-l="${k}" data-chk="${chk?1:0}"><ul>${lin(k,chk)}</ul><div class="add"><input type="text" placeholder="항목 추가 후 Enter"><button data-act="addli" data-l="${k}">추가</button></div></div>`};
+/* ---------- 저장 (브라우저 IndexedDB) ---------- */
+let db,tm;
+const idb=()=>new Promise(r=>{try{const q=indexedDB.open('wedding-board',1);q.onupgradeneeded=()=>q.result.createObjectStore('s');q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch(e){r(null)}});
+const load=async()=>{try{db=await idb();if(!db)return;await new Promise(r=>{const g=db.transaction('s').objectStore('s').get('state');g.onsuccess=()=>{if(g.result)Object.assign(S,g.result);r();render();};g.onerror=()=>r()})}catch(e){}};
+const save=()=>{clearTimeout(tm);tm=setTimeout(()=>{try{db&&db.transaction('s','readwrite').objectStore('s').put(S,'state')}catch(e){}},300)};
 
-const prep = ()=>`<div class="grid"><div class="card"><h5>👗 입고 가기!</h5>${list('prep:w',['누브라','속바지','편하게 벗을 수 있는 옷 (박시한 셔츠 추천!)','크록스 등 편한 신발'],1)}</div><div class="card"><h5>🎒 가져가기!</h5>${list('prep:b',['물','빨대 (립 지워지니까 빨대로 마시세요)','립밤','작은 거울 (중간중간 얼굴 체크)','물티슈 / 휴지','웨딩링 (또는 웨딩링 박스)','부케','촬영 소품 (비눗방울)','★ 보조배터리','당 충전용 사탕'],1)}</div><div class="card"><h5>📝 기타 체크</h5>${list('prep:e',['살색팬티','톤업크림','앞머리'],1)}</div></div>`;
-const req = ()=>`<div class="card" style="max-width:640px"><h5>지현 · 촬영 중 요청사항</h5>${list('req',['입술색','허리 펴기, 배 넣기','세로 / 가로 사진·영상 찍어주기','시안 확인 체크'])}</div>`;
+/* ---------- 컴포넌트 ---------- */
+const T=(k,d='',ph='내용을 입력하세요')=>`<div class="ed" contenteditable="true" data-t="${k}" data-ph="${ph}">${esc(S.t[k]??d)}</div>`;
+const zin=(k,min,h,max)=>{const a=S.p[k]||[];let s=a.map(p=>`<figure class="ph${p.h?' on':''}" data-id="${p.id}"><img src="${p.s}" alt=""><button class="x" data-act="delp" title="삭제">×</button>${h?`<button class="hb" data-act="heart" title="꼭 찍고 싶은 컷">${p.h?'♥':'♡'}</button>`:''}</figure>`).join('');
+ const n=max?Math.max(max-a.length,0):Math.max(min-a.length,1);
+ for(let i=0;i<n;i++)s+=`<button class="slot" data-act="slot" data-z="${k}">＋ 사진<br>드래그 / 클릭</button>`;return s};
+const zone=(k,o={})=>`<div class="zone${o.land?' land':''}${o.max?' one':''}" data-z="${k}" data-min="${o.min||1}" data-h="${o.h?1:0}" data-max="${o.max||0}">${zin(k,o.min||1,o.h,o.max)}</div>`;
+const col=(c,label,k,txt,min,h)=>`<div class="col ${c}"><h6>${label}</h6>${txt===null?'':T(k,txt)}${zone(k,{min,h})}</div>`;
+const pair=(k,[g,b],min,h,L=['원해요','피해주세요'])=>`<div class="pair">${col('good',L[0],k+':g',g,min,h)}${col('bad',L[1],k+':b',b,min,h)}</div>`;
+const pz=(k,min,h)=>`<div class="pair">${col('good','원해요',k+':g',null,min,h)}${col('bad','피해주세요',k+':b',null,min,h)}</div>`;
+const LD=(k,d)=>S.l[k]||(S.l[k]=d.map(t=>({id:uid(),t,c:0})));
+const lin=(k,chk)=>S.l[k].map(i=>`<li data-id="${i.id}">${chk?`<input type="checkbox" data-act="chk" ${i.c?'checked':''}>`:''}<div class="ed" contenteditable="true" data-li="1">${esc(i.t)}</div><button class="x2" data-act="dell" title="삭제">×</button></li>`).join('');
+const list=(k,d,chk)=>{LD(k,d);return `<div class="list" data-l="${k}" data-chk="${chk?1:0}"><ul>${lin(k,chk)}</ul><div class="add"><input type="text" placeholder="항목 추가 후 Enter"><button data-act="addli">추가</button></div></div>`};
+
+const prep=()=>`<div class="grid"><div class="card"><h5>👗 입고 가기!</h5>${list('prep:w',['누브라','속바지','편하게 벗을 수 있는 옷 (박시한 셔츠 추천!)','크록스 등 편한 신발'],1)}</div><div class="card"><h5>🎒 가져가기!</h5>${list('prep:b',['물','빨대 (립 지워지니까 빨대로 마시세요)','립밤','작은 거울 (중간중간 얼굴 체크)','물티슈 / 휴지','웨딩링 (또는 웨딩링 박스)','부케','촬영 소품 (비눗방울)','★ 보조배터리','당 충전용 사탕'],1)}</div><div class="card"><h5>📝 기타 체크</h5>${list('prep:e',['살색팬티','톤업크림','앞머리'],1)}</div></div>`;
+const req=()=>`<div class="card" style="max-width:640px"><h5>지현 · 촬영 중 요청사항</h5>${list('req',['입술색','허리 펴기, 배 넣기','세로 / 가로 사진·영상 찍어주기','시안 확인 체크'])}</div>`;
 const MK=[['eye','눈','애교살 중요, 언더음영으로 눈 확대',''],['skin','피부','러블리 메이크업, 블러는 말리장미빛 · 블러 넓게','싫어하는 색: 주황 웜톤, 핑크색'],['tone','피부 톤','본인 얼굴톤보다 밝게, 몸에도 톤업크림','']];
 const mkc=([k,n,g,b])=>`<div class="card"><h5>${n}</h5><div class="pair"><div class="col good"><h6>원해요</h6>${T('mk:'+k+':g',g)}</div><div class="col bad"><h6>피해주세요</h6>${T('mk:'+k+':b',b)}</div></div>${zone('mk:'+k,{min:2})}</div>`;
-const makeup=()=>`<div class="mk2"><div class="card"><h5>속눈썹</h5>${pair('mk:lash',['적당히','과하게 뭉치거나 긴 건 X'],1,0,['O 이런 느낌','O 이런 느낌'])}</div>${mkc(MK[0])}</div><div class="mk2" style="margin-top:28px">${mkc(MK[1])}${mkc(MK[2])}</div>`;
-const hair=()=>`<div class="card"><h5>1. 웨이브 / 앞머리</h5>${pair('hr:1',['굵은 웨이브 선호 · 앞머리, 잔머리 웨이브','귀 옆부터 튀어나온 웨이브 비선호'],6)}</div><div class="grid2" style="margin-top:12px"><div class="card"><h5>2. 반묶음 / 땋기</h5>${T('hr:2','반묶음, 바람이 심하면 땋기')}${zone('hr:2',{min:6})}</div><div class="card"><h5>3. 내추럴 로우번</h5>${T('hr:3','앞머리, 잔머리, 옆 잔머리 · 헤어마스카라')}${zone('hr:3',{min:6})}</div>`;
-const dress=()=>`<div class="grid">${[['st','1. 스튜디오','풍성한 A드레스'],['fo','2. 숲들판','캐쥬얼 드레스'],['se','3. 바다들판','슬림 드레스']].map(([k,n,d])=>`<div class="card"><h5>${n}</h5>${T('dr:'+k,d,'드레스 설명을 입력하세요')}${zone('dr:'+k,{min:3})}</div>`).join('')}</div>`;
+const makeup=()=>`<div class="mk2"><div class="card"><h5>속눈썹</h5>${pair('mk:lash',['적당히','과하게 뭉치거나 긴 건 X'],1,0,['O 이런 느낌','X 이건 피해주세요'])}</div>${mkc(MK[0])}</div><div class="mk2" style="margin-top:28px">${mkc(MK[1])}${mkc(MK[2])}</div>`;
+const hair=()=>`<div class="card"><h5>1. 웨이브 / 앞머리</h5>${pair('hr:1',['굵은 웨이브 선호 · 앞머리, 잔머리 웨이브','귀 옆부터 튀어나온 웨이브 비선호'],6)}</div><div class="grid2" style="margin-top:12px"><div class="card"><h5>2. 반묶음 / 땋기</h5>${T('hr:2','반묶음, 바람이 심하면 땋기')}${zone('hr:2',{min:6})}</div><div class="card"><h5>3. 내추럴 로우번</h5>${T('hr:3','앞머리, 잔머리, 옆 잔머리 · 헤어마스카라')}${zone('hr:3',{min:6})}</div></div>`;
+const dress=()=>`<div class="grid">${[['st','1. 스튜디오','풍성한 A드레스'],['fo','2. 숲들판','캐쥬얼 드레스'],['se','3. 바다들판','슬림 드레스']].map(([k,n,d])=>`<div class="card"><h5>${n}</h5>${T('dr:'+k,d,'드레스 설명을 입력하세요')}${zone('dr:'+k,{min:4})}</div>`).join('')}</div>`;
 const intro=()=>`<div class="hint">※ 선호는 "원해요" 사진만, 비선호는 "피해주세요" 사진만 올릴 수 있어요.</div><div class="cats">${[['pf','선호',['신부 왼쪽 얼굴 선호','신랑 완전 옆모습 좋음'],'good'],['np','비선호',['입툭튀라 신부 완전 옆모습 비선호'],'bad'],['ot','기타',['꼭 찍고 싶은 컷은 ♥ 표시'],'']].map(([k,n,d,c])=>`<div class="card"><h5>${n}</h5>${list('in:'+k,d)}${c==='good'?col('good','원해요','in:'+k+':g',null,2,0):c==='bad'?col('bad','피해주세요','in:'+k+':b',null,2,0):pz('in:'+k,2,0)}</div>`).join('')}</div>`;
-
 const SUM=[['groom','신랑옷',1],['bride','신부옷',1],['hair','신부머리',1],['bq','부케',1],['prop','소품',0]];
 const POSE0=[['b','신부 단독'],['g','신랑 단독'],['t','함께'],['o','기타']];
-const poses=id=>(window.S.l[id+':poses']=window.S.l[id+':poses']||POSE0.map(([i,t])=>({id:i,t})));
-const poseHTML=(id,D)=>poses(id).map(p=>{const[g,b]=(D.pose&&D.pose[p.id])||['',''],k=`${id}:p:${p.id}`;return `<div class="card pose" data-pid="${p.id}"><div class="phd"><div class="ed pname" contenteditable="true" data-pn="1" data-sid="${id}" data-pid="${p.id}" data-ph="포즈 이름">${esc(p.t)}</div><button class="x2" data-act="delpose" data-sid="${id}" data-pid="${p.id}" title="포즈 삭제">×</button></div>${col('good','원해요',k+':g',g,3,1)}${col('bad','피해주세요',k+':b',b,3,1)}</div>`}).join('');
+const poses=id=>(S.l[id+':poses']=S.l[id+':poses']||POSE0.map(([i,t])=>({id:i,t})));
+const poseHTML=(id,D)=>poses(id).map(p=>{const[g,b]=(D.pose&&D.pose[p.id])||['',''],k=`${id}:p:${p.id}`;return `<div class="card pose" data-pid="${p.id}"><div class="phd"><div class="ed pname" contenteditable="true" data-pn="1" data-ph="포즈 이름">${esc(p.t)}</div><button class="x2" data-act="delpose" title="포즈 삭제">×</button></div>${col('good','원해요',k+':g',g,3,1)}${col('bad','피해주세요',k+':b',b,3,1)}</div>`}).join('');
 const scene=(id,D)=>`<div class="blk"><h4>원하는 시안</h4>${T(id+':want',D.want)}<p class="hint" style="margin:6px 0 0">♡ 를 눌러 ♥ 로 바꾸면 "꼭 찍고 싶은 컷"으로 표시돼요.</p></div><h4 class="sec">요약 사항</h4><div class="grid sumg">${SUM.map(([k,n,one])=>`<div class="card${one?'':' wide'}"><h5>${n}</h5>${T(`${id}:s:${k}`,D.sum[k]\vert{}\vert{}'')}${zone(`${id}:s:${k}`,one?{min:1,max:1,h:1}:{min:3,h:1,land:1})}</div>`).join('')}</div><h4 class="sec">포즈 요청 사항</h4><div class="poses" data-sid="${id}">${poseHTML(id,D)}</div><button class="addrow" data-act="addpose" data-sid="${id}">＋ 포즈 추가</button>`;
 const SC={studio:{want:'정자세 · 캐주얼 / 신부 단독, 신랑 단독, 함께, 소품 확대샷',sum:{groom:'자켓 입고, 일반 넥타이',bride:'풍성한 A드레스',hair:'C컬 웨이브',prop:'구두, 손 뽀뽀'},pose:{b:['','완전 옆모습'],g:['','확대, 다리 꼬기'],t:['정자세, 캐주얼 · 남녀, 꽃 잔뜩 · 하이 앵글샷',''],o:['소품 확대샷 (빠르게 한두 컷만 찍기)','']}},
 forest:{want:'앉기, 안기, 눕기, 뛰기, 항공샷',sum:{groom:'셔츠만',bride:'캐쥬얼 드레스',hair:'반묶음 또는 땋기',prop:'비눗방울, 썬글라스, 여자부츠'},pose:{}},
 sea:{want:'항공샷, 커플샷(진중), 뒷모습, 손잡고 걷고 뛰기, 춤',sum:{groom:'자켓 + 넥타이 + 베스트',bride:'슬림 드레스',hair:'반묶음 또는 번 & 베일'},pose:{}}};
-
-const TABS=[
-  {id:'prep',n:'준비물',sub:[{id:'list',n:'리스트'}],render:prep},
-  {id:'req',n:'촬영요청',render:req},
-  {id:'salon',n:'케이살롱',sub:[{id:'makeup',n:'메이크업'},{id:'hair',n:'헤어'},{id:'dress',n:'드레스'}],render:()=>window.S.sub.salon==='hair'?hair():window.S.sub.salon==='dress'?dress():makeup()},
-  {id:'ite',n:'ite',sub:[{id:'intro',n:'소개사항'},{id:'studio',n:'스튜디오'},{id:'forest',n:'숲들판'},{id:'sea',n:'바다들판'}],render:()=>window.S.sub.ite==='studio'?scene('studio',SC.studio):window.S.sub.ite==='forest'?scene('forest',SC.forest):window.S.sub.ite==='sea'?scene('sea',SC.sea):intro()}
-];
-
-window.render = () => {
-  const S = window.S;
-  $('#nav').innerHTML = TABS.map(t=>`<button class="${S.tab===t.id?'on':''}" data-tab="${t.id}">${t.n}</button>`).join('');
-  const cur = TABS.find(t=>t.id===S
