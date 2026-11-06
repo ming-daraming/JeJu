@@ -382,5 +382,28 @@ document.addEventListener('click',e=>{
  else if(act==='print1'||act==='print2'){document.body.classList.toggle('all',act==='print2');window.print()}});
 load().then(()=>{S.sub=S.sub||{};S.sub.req=S.sub.req||'list';build()});
 </script>
+  <script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.2.0/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyDL3Asd3DdXbiVkjl-_N2lNCQ1KvxrXRfk",
+    authDomain: "jeju-min-hun.firebaseapp.com",
+    projectId: "jeju-min-hun",
+    storageBucket: "jeju-min-hun.firebasestorage.app",
+    messagingSenderId: "813992374915",
+    appId: "1:813992374915:web:1f827b1af32c79b00761b6",
+    measurementId: "G-8F4E0ZW37K"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+</script>
 </body>
 </html>
