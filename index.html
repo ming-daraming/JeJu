@@ -188,6 +188,49 @@ th,td{font-size:9pt;height:.3in}table{min-width:0}
 <input type="file" id="fi" accept="image/*" multiple hidden>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
+
+  // 클립보드 이미지 복사·붙여넣기(Ctrl+V) 기능 추가
+window.addEventListener('paste', async (e) => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+
+  for (const item of items) {
+    if (item.type.indexOf('image') === 0) {
+      e.preventDefault();
+      const file = item.getAsFile();
+      if (!file) return;
+
+      // 현재 선택되어 있거나 마우스가 올라가 있는 포토존 찾기 (없으면 현재 열린 탭의 첫 번째 빈 슬롯 선택)
+      let targetZone = document.querySelector('.ph.on')?.closest('.zone') || document.querySelector('.panel.on .zone');
+      if (!targetZone) return;
+
+      // 파일을 Base64로 변환하여 기존 S.p 데이터에 추가
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64Str = event.target.result;
+        const zKey = targetZone.dataset.z;
+        
+        if (!S.p[zKey]) S.p[zKey] = [];
+        
+        // 최대 개수 제한이 있는 경우 체크 (max 속성)
+        const maxLimit = parseInt(targetZone.dataset.max) || 0;
+        if (maxLimit > 0 && S.p[zKey].length >= maxLimit) {
+          alert(`이 칸은 최대 ${maxLimit}장까지만 넣을 수 있어요!`);
+          return;
+        }
+
+        // 새 이미지 객체 추가
+        S.p[zKey].push({ id: uid(), s: base64Str, h: 0 });
+        save();
+        
+        // 화면 새로고침 (영역만 렌더링 갱신)
+        rz(targetZone);
+      };
+      reader.readAsDataURL(file);
+      break;
+    }
+  }
+});
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
